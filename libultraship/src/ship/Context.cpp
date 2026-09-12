@@ -474,7 +474,7 @@ std::string Context::GetShortName() const {
 }
 
 std::string Context::GetAppBundlePath() {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(TERMUX)
     const char* externaldir = SDL_AndroidGetExternalStoragePath();
     if (externaldir != NULL) {
         return externaldir;
@@ -537,7 +537,7 @@ std::string Context::GetAppBundlePath() {
 }
 
 std::string Context::GetAppDirectoryPath(const std::string& appName) {
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) && !defined(TERMUX)
     const char* externaldir = SDL_AndroidGetExternalStoragePath();
     if (externaldir != NULL) {
         return externaldir;
