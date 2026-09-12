@@ -42,6 +42,13 @@ option(INCLUDE_MPQ_SUPPORT "Enable StormLib and MPQ archive support" OFF)
 option(GBI_UCODE "Specify the GBI ucode version" F3DEX_GBI_2)
 
 # =========== Dependencies =============
+
+# ========= Termux Detection =========
+if(DEFINED ENV{TERMUX_VERSION} OR EXISTS /data/data/com.termux)
+    message(STATUS "Termux detected - enabling portability flags")
+    add_compile_definitions(TERMUX __THROW=)
+endif()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     include(cmake/dependencies/windows-vcpkg.cmake)
 endif()

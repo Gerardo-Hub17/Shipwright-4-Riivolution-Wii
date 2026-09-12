@@ -61,11 +61,12 @@ if (NOT ${libzip_FOUND})
     set(BUILD_OSSFUZZ OFF)
     set(BUILD_SHARED_LIBS OFF)
     FetchContent_Declare(
-        libzip
-        GIT_REPOSITORY https://github.com/nih-at/libzip.git
-        GIT_TAG v1.11.4
-        OVERRIDE_FIND_PACKAGE
-    )
+    libzip
+    GIT_REPOSITORY https://github.com/nih-at/libzip.git
+    GIT_TAG v1.11.4
+    OVERRIDE_FIND_PACKAGE
+    PATCH_COMMAND sed -i "s/zstd::libzstd_static/zstd::libzstd_shared/g" <SOURCE_DIR>/CMakeLists.txt
+)
     FetchContent_MakeAvailable(libzip)
     list(APPEND ADDITIONAL_LIB_INCLUDES ${libzip_SOURCE_DIR}/lib ${libzip_BINARY_DIR})
 endif()
