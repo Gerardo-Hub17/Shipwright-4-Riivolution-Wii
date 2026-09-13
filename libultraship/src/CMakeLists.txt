@@ -71,10 +71,24 @@ target_include_directories(libultraship
 )
 
 #=================== Linking ===================
-if(INCLUDE_MPQ_SUPPORT)
-    if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
-        target_link_libraries(libultraship PUBLIC "$<LINK_LIBRARY:WHOLE_ARCHIVE,storm>")
-    else()
+elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoWii")
+    target_compile_definitions(libultraship PRIVATE
+        ENABLE_GX
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        $<$<BOOL:${GFX_DEBUG_DISASSEMBLER}>:GFX_DEBUG_DISASSEMBLER>
+    )
+else()
+    target_compile_definitions(libultraship PRIVATE
+        ENABLE_OPENGL
+        $<$<CONFIG:Debug>:_DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:NDEBUG>
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        $<$<BOOL:${USE_OPENGLES}>:USE_OPENGLES>
+        $<$<BOOL:${GFX_DEBUG_DISASSEMBLER}>:GFX_DEBUG_DISASSEMBLER>
+    )
+endif()else()
         target_link_libraries(libultraship PUBLIC storm)
     endif()
 endif()
@@ -120,7 +134,10 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
     target_link_libraries(libultraship PRIVATE ${OSX_FOUNDATION} ${OSX_AVFOUNDATION} ${METAL} ${QUARTZCORE} ${COREAUDIO} ${AUDIOTOOLBOX} ${CMAKE_DL_LIBS})
 endif()
 
-if (USE_OPENGLES)
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoWii")
+    # Wii: enlazar libogc + libfat (definidos en wii.cmake)
+    target_link_libraries(libultraship PRIVATE Wii::OGC Wii::FAT)
+elseif (USE_OPENGLES)
     if (CMAKE_SYSTEM_NAME STREQUAL "Android")
         find_library(OPENGLES_LIBRARY GLESv3)
         target_link_libraries(libultraship PRIVATE GLESv3)
