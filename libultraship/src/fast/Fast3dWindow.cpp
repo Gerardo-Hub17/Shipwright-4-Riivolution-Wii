@@ -10,7 +10,7 @@
 #ifdef ENABLE_GX
 #include "fast/backends/gfx_gx.h"
 #endif
-#ifdef OPEN_GL
+#ifdef ENABLE_OPENGL
 #include "fast/backends/gfx_opengl.h"
 #endif
 #include "fast/backends/gfx_metal.h"
