@@ -11,6 +11,13 @@
 #include "soh/OTRGlobals.h"
 #include "soh/CrashHandlerExt.h"
 
+#ifdef __wii__
+// Wii: fuerza el heap a MEM2 (64 MB) en vez de MEM1 (24 MB compartidos con la GPU).
+// libogc respeta este símbolo débil; sin él, SoH se queda sin memoria al cargar.
+// Ver docs/WII_PORT.md sección "Detalles de implementación del port".
+u32 MALLOC_MEM2 = 1;
+#endif
+
 s32 gScreenWidth = SCREEN_WIDTH;
 s32 gScreenHeight = SCREEN_HEIGHT;
 size_t gSystemHeapSize = 0;
