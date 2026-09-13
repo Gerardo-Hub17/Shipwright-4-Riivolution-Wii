@@ -27,7 +27,6 @@ set(USE_OPENGLES OFF CACHE BOOL "" FORCE)
 set(USE_OPENGL OFF CACHE BOOL "" FORCE)
 set(USE_DIRECT3D OFF CACHE BOOL "" FORCE)
 set(USE_METAL OFF CACHE BOOL "" FORCE)
-set(USE_SDL2 OFF CACHE BOOL "" FORCE)
 
 # ================== FetchContent setup ==================
 include(FetchContent)
@@ -135,3 +134,12 @@ message(STATUS "  DEVKITPRO:    $ENV{DEVKITPRO}")
 message(STATUS "  DEVKITPPC:    $ENV{DEVKITPPC}")
 message(STATUS "  libogc:       ${OGC_LIBRARY}")
 message(STATUS "  libfat:       ${FAT_LIBRARY}")
+
+
+# ================== SDL2 (input, audio, timing) ==================
+# Wii usa SDL2 para input, audio (SDLAudioPlayer) y timing (SDL_GetTicks).
+# El backend gráfico sigue siendo GX nativo, no SDL_GL.
+find_package(SDL2 REQUIRED)
+target_link_libraries(ImGui PUBLIC SDL2::SDL2)
+
+message(STATUS "SDL2 linked for Wii: ${SDL2_LIBRARIES}")
