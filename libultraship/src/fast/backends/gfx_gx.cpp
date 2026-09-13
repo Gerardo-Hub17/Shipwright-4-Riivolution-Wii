@@ -27,10 +27,10 @@ static GXRModeObj* sVideoMode  = nullptr;
 static u16    sWidth           = 640;
 static u16    sHeight          = 480;
 
-// Convierte RGBA32 entrelazado a GX_TF_RGBA8 (tiles 4x4, dos planos)
-// Layout GX_TF_RGBA8 por tile (64 bytes):
-//   [0..31]:  RA plane — por fila: R0 A0 R1 A1 R2 A2 R3 A3
-//   [32..63]: GB plane — por fila: G0 B0 G1 B1 G2 B2 G3 B3
+// Convierte RGBA32 entrelazado a GX_TF_RGBA8 (tiles 4x4, dos planos).
+// Layout por tile (64 bytes):
+//   [0..31]   RA plane — por fila: R0 A0 R1 A1 R2 A2 R3 A3
+//   [32..63]  GB plane — por fila: G0 B0 G1 B1 G2 B2 G3 B3
 static void ConvertRGBA32ToGX(const uint8_t* src, uint8_t* dst,
                               uint32_t width, uint32_t height) {
     const uint32_t tilesX = (width  + 3) / 4;
@@ -70,7 +70,7 @@ const char* GfxRenderingAPIGX::GetName() { return "GX"; }
 int GfxRenderingAPIGX::GetMaxTextureSize() { return 1024; }
 
 GfxClipParameters GfxRenderingAPIGX::GetClipParameters() {
-    // GX: Z en [0,1]; Y ya viene invertido por el projection matrix de SoH
+    // GX: Z en [0, 1]; Y viene ya invertido por la projection matrix de SoH.
     return { true, false };
 }
 
@@ -85,12 +85,10 @@ void GfxRenderingAPIGX::Init() {
     sWidth  = sVideoMode->fbWidth;
     sHeight = sVideoMode->efbHeight;
 
-    // Framebuffers
     sFramebuffer[0] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(sVideoMode));
     sFramebuffer[1] = MEM_K0_TO_K1(SYS_AllocateFramebuffer(sVideoMode));
     sFramebufferIdx = 0;
 
-    // FIFO de comandos GX
     sFifoBuffer = MEM_K0_TO_K1(SYS_AllocateFifo(FIFO_SIZE));
 
     VIDEO_Configure(sVideoMode);
@@ -100,7 +98,6 @@ void GfxRenderingAPIGX::Init() {
     VIDEO_WaitVSync();
     if (sVideoMode->viTVMode & VI_NON_INTERLACE) VIDEO_WaitVSync();
 
-    // GX
     GX_Init(sFifoBuffer, FIFO_SIZE);
 
     GXColor bg = { 0, 0, 0, 0 };
@@ -119,15 +116,10 @@ void GfxRenderingAPIGX::Init() {
     GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
     GX_SetDispCopyGamma(GX_GM_1_0);
 
-    // Configuración base del vertex format
+    // Vertex format: solo POS siempre; CLR0 y TEX0 se activan en StartFrame.
     GX_ClearVtxDesc();
-    GX_SetVtxDesc(GX_VA_POS,  GX_DIRECT);
-    GX_SetVtxDesc(GX_VA_CLR0, GX_DIRECT);
-    GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
-
-    GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS,  GX_POS_XYZ, GX_F32,   0);
-    GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
-    GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST,  GX_F32,   0);
+    GX_SetVtxDesc(GX_VA_POS, GX_DIRECT);
+    GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
 
     GX_SetNumChans(1);
     GX_SetNumTexGens(1);
@@ -135,12 +127,10 @@ void GfxRenderingAPIGX::Init() {
     GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
     GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
 
-    // Alpha blending base
     GX_SetBlendMode(GX_BM_BLEND, GX_BL_SRCALPHA, GX_BL_INVSRCALPHA, GX_LO_CLEAR);
     GX_SetAlphaUpdate(GX_TRUE);
     GX_SetColorUpdate(GX_TRUE);
 
-    // Cull y Z
     GX_SetCullMode(GX_CULL_NONE);
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
     GX_SetZCompLoc(GX_FALSE);
@@ -155,7 +145,6 @@ void GfxRenderingAPIGX::OnResize() {
 }
 
 void GfxRenderingAPIGX::StartFrame() {
-    // Configuración por frame
     GX_SetZMode(GX_TRUE, GX_LEQUAL, mCurrentDepthMask ? GX_TRUE : GX_FALSE);
     GX_SetCullMode(mCurrentZmodeDecal ? GX_CULL_NONE : GX_CULL_BACK);
 }
@@ -163,7 +152,6 @@ void GfxRenderingAPIGX::StartFrame() {
 void GfxRenderingAPIGX::EndFrame() {
     GX_DrawDone();
 
-    // Flip de framebuffer
     sFramebufferIdx ^= 1;
     GX_SetZMode(GX_TRUE, GX_LEQUAL, GX_TRUE);
     GX_SetColorUpdate(GX_TRUE);
@@ -190,9 +178,7 @@ uint32_t GfxRenderingAPIGX::NewTexture() {
 
 void GfxRenderingAPIGX::DeleteTexture(uint32_t texId) {
     if (texId < mTextures.size()) {
-        if (mTextures[texId].data) {
-            free(mTextures[texId].data);
-        }
+        if (mTextures[texId].data) free(mTextures[texId].data);
         mTextures[texId] = TextureInfoGX{};
     }
 }
@@ -202,19 +188,16 @@ void GfxRenderingAPIGX::UploadTexture(const uint8_t* rgba32Buf,
     if (mTextures.empty()) return;
     TextureInfoGX& tex = mTextures.back();
 
-    // Ajusta a múltiplos de 4 (requisito de tiles GX)
     uint32_t w = (width  + 3) & ~3u;
     uint32_t h = (height + 3) & ~3u;
-
-    // Tamaño en bytes del buffer GX_TF_RGBA8
     size_t gxSize = (size_t)w * h * 4;
+
     if (tex.data) free(tex.data);
     tex.data = memalign(32, gxSize);
     if (!tex.data) return;
 
     ConvertRGBA32ToGX(rgba32Buf, (uint8_t*)tex.data, width, height);
 
-    // Flush de caché (obligatorio: GX lee directo de RAM)
     DCFlushRange(tex.data, (u32)gxSize);
     GX_InvalidateTexAll();
 
@@ -244,16 +227,9 @@ void GfxRenderingAPIGX::SetSamplerParameters(int sampler, bool linear_filter,
     GX_InitTexObjFilterMode(&tex.texObj, filt, filt);
 }
 
-void GfxRenderingAPIGX::SetTextureFilter(FilteringMode mode) {
-    mCurrentFilterMode = mode;
-}
-FilteringMode GfxRenderingAPIGX::GetTextureFilter() {
-    return mCurrentFilterMode;
-}
-ImTextureID GfxRenderingAPIGX::GetTextureById(int id) {
-    (void)id;
-    return (ImTextureID)0;
-}
+void GfxRenderingAPIGX::SetTextureFilter(FilteringMode mode) { mCurrentFilterMode = mode; }
+FilteringMode GfxRenderingAPIGX::GetTextureFilter() { return mCurrentFilterMode; }
+ImTextureID GfxRenderingAPIGX::GetTextureById(int id) { (void)id; return (ImTextureID)0; }
 
 // ============================================================
 //  Estado del pipeline
@@ -264,13 +240,8 @@ void GfxRenderingAPIGX::SetDepthTestAndMask(bool depth_test, bool z_upd) {
     GX_SetZMode(depth_test ? GX_TRUE : GX_FALSE, GX_LEQUAL, z_upd ? GX_TRUE : GX_FALSE);
 }
 
-void GfxRenderingAPIGX::SetCurrentPrimDepth(float depth) {
-    mCurrentPrimDepth = depth;
-}
-
-void GfxRenderingAPIGX::SetZmodeDecal(bool decal) {
-    mCurrentZmodeDecal = decal ? 1 : 0;
-}
+void GfxRenderingAPIGX::SetCurrentPrimDepth(float depth) { mCurrentPrimDepth = depth; }
+void GfxRenderingAPIGX::SetZmodeDecal(bool decal) { mCurrentZmodeDecal = decal ? 1 : 0; }
 
 void GfxRenderingAPIGX::SetViewport(int x, int y, int width, int height) {
     GX_SetViewport((f32)x, (f32)y, (f32)width, (f32)height, 0.0f, 1.0f);
@@ -280,88 +251,11 @@ void GfxRenderingAPIGX::SetScissor(int x, int y, int width, int height) {
     GX_SetScissor((u32)x, (u32)y, (u32)width, (u32)height);
 }
 
-void GfxRenderingAPIGX::SetUseAlpha(bool useAlpha) {
-    (void)useAlpha;
-}
-
+void GfxRenderingAPIGX::SetUseAlpha(bool useAlpha) { (void)useAlpha; }
 void GfxRenderingAPIGX::SetSrgbMode() { mSrgbMode = true; }
 
 // ============================================================
-//  Dibujo
-// ============================================================
-void GfxRenderingAPIGX::DrawTriangles(float buf_vbo[], size_t buf_vbo_len,
-                                       size_t buf_vbo_num_tris) {
-    if (buf_vbo_num_tris == 0 || buf_vbo_len == 0) return;
-
-    // SoH empaqueta cada vértice como: x, y, z, u, v, r, g, b, a  (9 floats)
-    // Si el layout difiere, ajustar aquí (ver gfx_opengl.cpp para el contrato real).
-    constexpr size_t FLOATS_PER_VERTEX = 9;
-
-    GX_Begin(GX_TRIANGLES, GX_VTXFMT0, (u16)(buf_vbo_num_tris * 3));
-
-    size_t numVerts = buf_vbo_len / FLOATS_PER_VERTEX;
-    for (size_t i = 0; i < numVerts; ++i) {
-        const float* v = &buf_vbo[i * FLOATS_PER_VERTEX];
-        GX_Position3f32(v[0], v[1], v[2]);
-        GX_TexCoord2f32(v[3], v[4]);
-        GX_Color4u8((u8)(v[5] * 255.0f), (u8)(v[6] * 255.0f),
-                    (u8)(v[7] * 255.0f), (u8)(v[8] * 255.0f));
-    }
-
-    GX_End();
-}
-
-// ============================================================
-//  Shaders (TEV)
-// ============================================================
-void GfxRenderingAPIGX::UnloadShader(ShaderProgram* oldPrg) { (void)oldPrg; }
-
-void GfxRenderingAPIGX::LoadShader(ShaderProgram* newPrg) {
-    if (!newPrg) return;
-
-    // TODO: mapear los shader IDs a una combinación de TEV stages.
-    // Por ahora, configuramos un estado razonable por defecto.
-    if (newPrg->usedTextures[0]) {
-        GX_SetNumTevStages(1);
-        GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
-        GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
-    } else {
-        GX_SetNumTevStages(1);
-        GX_SetTevOp(GX_TEVSTAGE0, GX_PASSCLR);
-        GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORDNULL, GX_TEXMAP_NULL, GX_COLOR0A0);
-    }
-}
-
-ShaderProgram* GfxRenderingAPIGX::CreateAndLoadNewShader(uint64_t shaderId0,
-                                                          uint64_t shaderId1) {
-    // TODO: crear ShaderProgram y mapear shader IDs a TEV
-    (void)shaderId0; (void)shaderId1;
-    return nullptr;
-}
-
-ShaderProgram* GfxRenderingAPIGX::LookupShader(uint64_t shaderId0,
-                                                uint64_t shaderId1) {
-    (void)shaderId0; (void)shaderId1;
-    return nullptr;
-}
-
-void GfxRenderingAPIGX::ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs,
-                                       bool usedTextures[2]) {
-    if (prg) {
-        *numInputs = prg->numInputs;
-        usedTextures[0] = prg->usedTextures[0];
-        usedTextures[1] = prg->usedTextures[1];
-    } else {
-        *numInputs = 0;
-        usedTextures[0] = false;
-        usedTextures[1] = false;
-    }
-}
-
-void GfxRenderingAPIGX::ClearShaderCache() { /* TODO */ }
-
-// ============================================================
-//  Framebuffers (stubs por ahora, se implementan cuando haga falta)
+//  Framebuffers (stubs, se completan cuando haga falta)
 // ============================================================
 int GfxRenderingAPIGX::CreateFramebuffer() {
     FramebufferGX fb;
@@ -421,6 +315,191 @@ GfxRenderingAPIGX::GetPixelDepth(int fb_id, const std::set<std::pair<float, floa
 
 void* GfxRenderingAPIGX::GetFramebufferTextureId(int fbId) { (void)fbId; return nullptr; }
 void  GfxRenderingAPIGX::SelectTextureFb(int fbId) { (void)fbId; }
+
+// ============================================================
+//  Shaders
+// ============================================================
+void GfxRenderingAPIGX::UnloadShader(ShaderProgram* oldPrg) { (void)oldPrg; }
+
+/**
+ * Configura las TEV stages para que el color final refleje el shader.
+ * Por ahora solo se maneja el caso más común: modulación color × textura.
+ */
+void GfxRenderingAPIGX::ApplyTevForShader(const ShaderProgram* prg) {
+    if (!prg) return;
+
+    if (prg->hasTexture) {
+        GX_SetNumTevStages(1);
+        GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORD0, GX_TEXMAP0, GX_COLOR0A0);
+        GX_SetTevOp(GX_TEVSTAGE0, GX_MODULATE);
+    } else {
+        GX_SetNumTevStages(1);
+        GX_SetTevOrder(GX_TEVSTAGE0, GX_TEXCOORDNULL, GX_TEXMAP_NULL, GX_COLOR0A0);
+        GX_SetTevOp(GX_TEVSTAGE0, GX_PASSCLR);
+    }
+}
+
+void GfxRenderingAPIGX::LoadShader(ShaderProgram* newPrg) {
+    if (!newPrg || newPrg == mLastLoadedShader) return;
+
+    ApplyTevForShader(newPrg);
+    mLastLoadedShader = newPrg;
+    mCurrentShaderProgram = newPrg;
+}
+
+/**
+ * Crea un ShaderProgram y calcula:
+ *  - los offsets reales dentro del VBO (que tiene layout dinámico),
+ *  - la configuración TEV que usará GX.
+ *
+ * El layout del VBO (en floats por vértice), en orden, es:
+ *   1. aVtxPos              → 4 floats (x, y, z, w)
+ *   2. (por cada tex i)
+ *        aTexCoord{i}      → 2 floats (u, v)   [si usedTextures[i]]
+ *        aTexClamp{S,T}{i} → 1 float c/u       [si clamp[i][j]]
+ *   3. aFog                 → 4 floats        [si opt_fog]
+ *   4. aGrayscaleColor      → 4 floats        [si opt_grayscale]
+ *   5. (por cada input n)
+ *        aInput{n+1}       → opt_alpha ? 4 : 3
+ */
+ShaderProgram* GfxRenderingAPIGX::CreateAndLoadNewShader(uint64_t shaderId0, uint64_t shaderId1) {
+    CCFeatures cc_features;
+    gfx_cc_get_features(shaderId0, shaderId1, &cc_features);
+
+    auto key = std::make_pair(shaderId0, (uint32_t)shaderId1);
+    ShaderProgram& prg = mShaderProgramPool[key];
+
+    prg.numInputs = cc_features.numInputs;
+    prg.usedTextures[0] = cc_features.usedTextures[0];
+    prg.usedTextures[1] = cc_features.usedTextures[1];
+    prg.hasTexture = cc_features.usedTextures[0] || cc_features.usedTextures[1];
+    prg.hasAlpha = cc_features.opt_alpha;
+    prg.twoCycle = cc_features.opt_2cyc;
+
+    size_t pos = 0;
+
+    prg.posOffset = pos;
+    pos += 4; // aVtxPos: x, y, z, w
+
+    prg.tex0Offset = SIZE_MAX;
+    prg.tex1Offset = SIZE_MAX;
+    for (int i = 0; i < 2; ++i) {
+        if (cc_features.usedTextures[i]) {
+            if (i == 0) prg.tex0Offset = pos;
+            else        prg.tex1Offset = pos;
+            pos += 2;
+            for (int j = 0; j < 2; ++j) {
+                if (cc_features.clamp[i][j]) pos += 1;
+            }
+        }
+    }
+
+    prg.fogOffset = SIZE_MAX;
+    if (cc_features.opt_fog) {
+        prg.fogOffset = pos;
+        pos += 4;
+    }
+
+    size_t grayscaleOffset = SIZE_MAX;
+    if (cc_features.opt_grayscale) {
+        grayscaleOffset = pos;
+        pos += 4;
+    }
+
+    // Elegimos un "color" para GX: preferimos grayscale si existe,
+    // si no, el primer aInput (que suele llevar el color de vértice).
+    prg.colorOffset = SIZE_MAX;
+    if (grayscaleOffset != SIZE_MAX) {
+        prg.colorOffset = grayscaleOffset;
+    } else if (cc_features.numInputs > 0) {
+        prg.colorOffset = pos;
+    }
+
+    for (int i = 0; i < cc_features.numInputs; ++i) {
+        pos += cc_features.opt_alpha ? 4 : 3;
+    }
+
+    prg.numFloats = (uint8_t)pos;
+    prg.numAttribs = (uint8_t)cc_features.numInputs + 2; // aprox.
+    prg.numTevStages = 1;
+
+    LoadShader(&prg);
+    return &prg;
+}
+
+ShaderProgram* GfxRenderingAPIGX::LookupShader(uint64_t shaderId0, uint64_t shaderId1) {
+    auto it = mShaderProgramPool.find(std::make_pair(shaderId0, (uint32_t)shaderId1));
+    return it == mShaderProgramPool.end() ? nullptr : &it->second;
+}
+
+void GfxRenderingAPIGX::ShaderGetInfo(ShaderProgram* prg, uint8_t* numInputs,
+                                       bool usedTextures[2]) {
+    if (prg) {
+        *numInputs = prg->numInputs;
+        usedTextures[0] = prg->usedTextures[0];
+        usedTextures[1] = prg->usedTextures[1];
+    } else {
+        *numInputs = 0;
+        usedTextures[0] = false;
+        usedTextures[1] = false;
+    }
+}
+
+void GfxRenderingAPIGX::ClearShaderCache() {
+    mShaderProgramPool.clear();
+    mCurrentShaderProgram = nullptr;
+    mLastLoadedShader = nullptr;
+}
+
+// ============================================================
+//  Dibujo
+// ============================================================
+void GfxRenderingAPIGX::DrawTriangles(float buf_vbo[], size_t buf_vbo_len,
+                                       size_t buf_vbo_num_tris) {
+    if (buf_vbo_num_tris == 0 || buf_vbo_len == 0) return;
+    if (!mCurrentShaderProgram) return;
+
+    const ShaderProgram* prg = mCurrentShaderProgram;
+    if (prg->numFloats == 0) return;
+
+    const size_t numVerts = buf_vbo_len / prg->numFloats;
+
+    // Configuramos el formato de vértice según lo que tenga el shader.
+    GX_ClearVtxDesc();
+    GX_SetVtxDesc(GX_VA_POS, GX_DIRECT);
+    GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS, GX_POS_XYZ, GX_F32, 0);
+
+    if (prg->colorOffset != SIZE_MAX) {
+        GX_SetVtxDesc(GX_VA_CLR0, GX_DIRECT);
+        GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
+    }
+    if (prg->tex0Offset != SIZE_MAX) {
+        GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
+        GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
+    }
+
+    GX_Begin(GX_TRIANGLES, GX_VTXFMT0, (u16)numVerts);
+
+    for (size_t i = 0; i < numVerts; ++i) {
+        const float* v = &buf_vbo[i * prg->numFloats];
+
+        const float* p = &v[prg->posOffset];
+        GX_Position3f32(p[0], p[1], p[2]);
+
+        if (prg->colorOffset != SIZE_MAX) {
+            const float* c = &v[prg->colorOffset];
+            GX_Color4u8((u8)(c[0] * 255.0f), (u8)(c[1] * 255.0f),
+                        (u8)(c[2] * 255.0f), (u8)(c[3] * 255.0f));
+        }
+
+        if (prg->tex0Offset != SIZE_MAX) {
+            const float* t = &v[prg->tex0Offset];
+            GX_TexCoord2f32(t[0], t[1]);
+        }
+    }
+
+    GX_End();
+}
 
 } // namespace Fast
 #endif // ENABLE_GX

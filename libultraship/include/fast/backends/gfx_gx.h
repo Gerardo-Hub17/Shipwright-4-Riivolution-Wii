@@ -5,16 +5,45 @@
 #include "gfx_rendering_api.h"
 #include "../interpreter.h"
 
+#include <map>
+#include <utility>
+
 #include <gccore.h>
 #include <ogc/gx.h>
 #include <ogc/gu.h>
 
 namespace Fast {
 
+// Tamaño máximo del pool de shaders en GX (TEV stages)
+constexpr size_t GX_MAX_ATTRIBS = 16;
+
+/**
+ * @brief Shader equivalente en GX.
+ *
+ * En GX no hay shaders programables: la combinación de colores se hace con
+ * TEV stages (hasta 16). Este struct guarda los offsets reales dentro del VBO
+ * de SoH (que tiene layout dinámico según qué atributos active el shader),
+ * y el shader ID original para poder reproducir el TEV correcto.
+ */
 struct ShaderProgram {
-    // TODO: rellenar con datos del shader GX (TEV stages, etc.)
     uint8_t numInputs = 0;
+    uint8_t numFloats = 0;              ///< Total de floats por vértice en el VBO.
+    uint8_t numAttribs = 0;
     bool usedTextures[SHADER_MAX_TEXTURES] = {};
+
+    // Offsets en FLOATS dentro de cada vértice (no bytes).
+    // SIZE_MAX = atributo ausente.
+    size_t posOffset = 0;               ///< aVtxPos (x, y, z, w)
+    size_t tex0Offset = SIZE_MAX;       ///< aTexCoord0 (u, v)
+    size_t tex1Offset = SIZE_MAX;       ///< aTexCoord1 (u, v)
+    size_t colorOffset = SIZE_MAX;      ///< Primer aInput o aGrayscaleColor (RGBA)
+    size_t fogOffset = SIZE_MAX;        ///< aFog (RGBA)
+
+    // Configuración TEV calculada a partir del shader_id.
+    bool hasTexture = false;
+    bool hasAlpha = false;
+    bool twoCycle = false;
+    uint8_t numTevStages = 1;
 };
 
 struct FramebufferGX {
@@ -99,11 +128,19 @@ class GfxRenderingAPIGX final : public GfxRenderingAPI {
     void SelectTextureFb(int fbId) override;
 
   private:
+    // Aplica la configuración TEV según el shader activo.
+    void ApplyTevForShader(const ShaderProgram* prg);
+
     std::vector<TextureInfoGX> mTextures;
     std::vector<FramebufferGX> mFrameBuffers;
     size_t mCurrentFrameBuffer = 0;
     FilteringMode mCurrentFilterMode = FILTER_THREE_POINT;
     bool mInitialized = false;
+
+    // Pool de shaders (clave = par de IDs).
+    std::map<std::pair<uint64_t, uint32_t>, ShaderProgram> mShaderProgramPool;
+    ShaderProgram* mCurrentShaderProgram = nullptr;
+    ShaderProgram* mLastLoadedShader = nullptr;
 };
 
 } // namespace Fast
