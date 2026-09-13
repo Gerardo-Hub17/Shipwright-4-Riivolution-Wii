@@ -162,3 +162,185 @@ for (cada vértice) {
 }
 GX_End();
 ```
+
+---
+
+El sistema de audio de SoH es **portable por diseño**. Jerarquía:
+
+```
+
+Audio (manager)
+└── AudioPlayer (base abstracta)
+├── SDLAudioPlayer      ← el que usaremos en Wii
+├── CoreAudioAudioPlayer (macOS)
+├── WasapiAudioPlayer    (Windows)
+└── NullAudioPlayer      (fallback)
+
+```
+
+**En Wii se usa `SDLAudioPlayer`** porque:
+- SDL2-wii (que viene con devkitPro) incluye un módulo de audio funcional.
+- `SDLAudioPlayer` usa solo API estándar de SDL2: `SDL_OpenAudioDevice`, `SDL_QueueAudio`, `SDL_GetQueuedAudioSize`. **Ninguna requiere cambios para Wii.**
+- El fallback automático a `NullAudioPlayer` en `Audio.cpp` garantiza que el juego arranque incluso si SDL audio falla.
+
+**Configuración por defecto (ajustable en `AudioSettings`):**
+- Sample rate: 44100 Hz (SDL2-wii resamplea a 48 kHz nativo si es necesario)
+- Canales: 2 (estéreo) o 6 (5.1 matrix)
+- Formato: `AUDIO_S16SYS` — en Wii esto significa **big-endian**, SDL lo maneja correctamente.
+
+**Alternativa futura (si SDL audio en Wii da problemas):**
+- Crear `ASNDAudioPlayer` usando `ASND_Init`, `ASND_SetVoice`, `ASND_AddVoice` de libogc.
+- Ventajas: menor latencia, control total del hardware.
+- Desventajas: reescribir el backend, gestionar buffers dobles con IRQ.
+
+**Referencia (Xash3D-Wii):** el port de Xash3D usa SDL2 para todo su audio, lo que confirma que el camino es viable.
+
+---
+
+## input en Wii
+
+Dos caminos posibles, decidiremos en el primer build real:
+
+1. **`GfxWindowBackendWii`** (implementado): usa `WPAD_ScanPads` + `PAD_ScanPads` directamente. Control total, sin depender de SDL2.
+
+2. **`SDL_GameController`** (usado por Xash3D-Wii): delegar el input a SDL2, que en Wii maneja WPAD y PAD automáticamente.
+
+**Escaneo de botones:** los scancodes internos de los botones Wii están definidos en
+`libultraship/src/fast/backends/gfx_window_wii.cpp` con valores >= 1000 (rango libre
+para no colisionar con SDL). Hay que registrarlos en el `ControlDeck` de SoH
+para que el juego los reconozca como bindings válidos.
+
+---
+
+## Sistema de archivos (pendiente)
+
+SoH usa `std::filesystem` de la STL. En Wii hay que sustituirlo por **libfat**
+(para SD/USB) o **libogc** (`fatInitDefault`).
+
+Archivos a revisar:
+- `libultraship/src/ship/resource/archive/*.cpp`
+- `libultraship/src/ship/utils/`
+- Cualquier sitio con `std::filesystem::` o `fopen`.
+
+Pendiente: identificar todos los usos y crear una capa de abstracción para Wii.
+
+---
+
+## Detalles de implementación del port
+
+### `MALLOC_MEM2 = 1`
+
+**CRÍTICO:** la Wii tiene 24 MB de MEM1 (lentos, compartidos con GPU) y 64 MB de MEM2 (más rápidos). Por defecto, libogc asigna heap en MEM1, lo que deja muy poca memoria libre al ejecutable.
+
+Solución (heredada de mi port Xash3D-Wii): definir la variable global al inicio del programa:
+
+```c
+u32 MALLOC_MEM2 = 1;
+```
+
+Esto debe ir en un .c/.cpp del ejecutable principal (probablemente en main.cpp o en el archivo de entrada de soh).
+
+IS_BIGENDIAN — automático
+
+El código de SoH detecta big-endian por __BYTE_ORDER__ (que devkitPPC define como __ORDER_BIG_ENDIAN__ para Gekko/Broadway). No hay que tocar nada.
+
+Las macros BE16SWAP/LE16SWAP/etc. en libultraship/include/ship/utils/binarytools/endianness.h se encargan de los swaps.
+
+Pendientes de manejar manualmente (fuera del sistema automático):
+
+· Texturas → GX (layout GX_TF_RGBA8 es específico de la GPU).
+· Matrices (Mtx N64 → formato GX).
+· Guardado de partidas (decidir endianness de escritura).
+  EOF
+cat >> docs/WII_PORT.md << 'EOF'
+
+---
+
+El sistema de audio de SoH es **portable por diseño**. Jerarquía:
+
+```
+
+Audio (manager)
+└── AudioPlayer (base abstracta)
+├── SDLAudioPlayer      ← el que usaremos en Wii
+├── CoreAudioAudioPlayer (macOS)
+├── WasapiAudioPlayer    (Windows)
+└── NullAudioPlayer      (fallback)
+
+```
+
+**En Wii se usa `SDLAudioPlayer`** porque:
+- SDL2-wii (que viene con devkitPro) incluye un módulo de audio funcional.
+- `SDLAudioPlayer` usa solo API estándar de SDL2: `SDL_OpenAudioDevice`, `SDL_QueueAudio`, `SDL_GetQueuedAudioSize`. **Ninguna requiere cambios para Wii.**
+- El fallback automático a `NullAudioPlayer` en `Audio.cpp` garantiza que el juego arranque incluso si SDL audio falla.
+
+**Configuración por defecto (ajustable en `AudioSettings`):**
+- Sample rate: 44100 Hz (SDL2-wii resamplea a 48 kHz nativo si es necesario)
+- Canales: 2 (estéreo) o 6 (5.1 matrix)
+- Formato: `AUDIO_S16SYS` — en Wii esto significa **big-endian**, SDL lo maneja correctamente.
+
+**Alternativa futura (si SDL audio en Wii da problemas):**
+- Crear `ASNDAudioPlayer` usando `ASND_Init`, `ASND_SetVoice`, `ASND_AddVoice` de libogc.
+- Ventajas: menor latencia, control total del hardware.
+- Desventajas: reescribir el backend, gestionar buffers dobles con IRQ.
+
+**Referencia (Xash3D-Wii):** el port de Xash3D usa SDL2 para todo su audio, lo que confirma que el camino es viable.
+
+---
+
+## input en Wii
+
+Dos caminos posibles, decidiremos en el primer build real:
+
+1. **`GfxWindowBackendWii`** (implementado): usa `WPAD_ScanPads` + `PAD_ScanPads` directamente. Control total, sin depender de SDL2.
+
+2. **`SDL_GameController`** (usado por Xash3D-Wii): delegar el input a SDL2, que en Wii maneja WPAD y PAD automáticamente.
+
+**Escaneo de botones:** los scancodes internos de los botones Wii están definidos en
+`libultraship/src/fast/backends/gfx_window_wii.cpp` con valores >= 1000 (rango libre
+para no colisionar con SDL). Hay que registrarlos en el `ControlDeck` de SoH
+para que el juego los reconozca como bindings válidos.
+
+---
+
+## Sistema de archivos (pendiente)
+
+SoH usa `std::filesystem` de la STL. En Wii hay que sustituirlo por **libfat**
+(para SD/USB) o **libogc** (`fatInitDefault`).
+
+Archivos a revisar:
+- `libultraship/src/ship/resource/archive/*.cpp`
+- `libultraship/src/ship/utils/`
+- Cualquier sitio con `std::filesystem::` o `fopen`.
+
+Pendiente: identificar todos los usos y crear una capa de abstracción para Wii.
+
+---
+
+## Detalles de implementación del port
+
+### `MALLOC_MEM2 = 1`
+
+**CRÍTICO:** la Wii tiene 24 MB de MEM1 (lentos, compartidos con GPU) y 64 MB de MEM2 (más rápidos). Por defecto, libogc asigna heap en MEM1, lo que deja muy poca memoria libre al ejecutable.
+
+Solución (heredada de mi port Xash3D-Wii): definir la variable global al inicio del programa:
+
+```c
+u32 MALLOC_MEM2 = 1;
+```
+
+Esto debe ir en un .c/.cpp del ejecutable principal (probablemente en main.cpp o en el archivo de entrada de soh).
+
+IS_BIGENDIAN — automático
+
+El código de SoH detecta big-endian por __BYTE_ORDER__ (que devkitPPC define como __ORDER_BIG_ENDIAN__ para Gekko/Broadway). No hay que tocar nada.
+
+Las macros BE16SWAP/LE16SWAP/etc. en libultraship/include/ship/utils/binarytools/endianness.h se encargan de los swaps.
+
+Pendientes de manejar manualmente (fuera del sistema automático):
+
+· Texturas → GX (layout GX_TF_RGBA8 es específico de la GPU).
+· Matrices (Mtx N64 → formato GX).
+· Guardado de partidas (decidir endianness de escritura).
+ 
+
