@@ -240,13 +240,13 @@ u32 MALLOC_MEM2 = 1;
 
 Esto debe ir en un .c/.cpp del ejecutable principal (probablemente en main.cpp o en el archivo de entrada de soh).
 
-IS_BIGENDIAN — automático
+### IS_BIGENDIAN — automático
 
 El código de SoH detecta big-endian por __BYTE_ORDER__ (que devkitPPC define como __ORDER_BIG_ENDIAN__ para Gekko/Broadway). No hay que tocar nada.
 
 Las macros BE16SWAP/LE16SWAP/etc. en libultraship/include/ship/utils/binarytools/endianness.h se encargan de los swaps.
 
-Pendientes de manejar manualmente (fuera del sistema automático):
+#### Pendientes de manejar manualmente
 
 · Texturas → GX (layout GX_TF_RGBA8 es específico de la GPU).
 · Matrices (Mtx N64 → formato GX).
@@ -288,59 +288,93 @@ Audio (manager)
 
 ---
 
-## input en Wii
-
-Dos caminos posibles, decidiremos en el primer build real:
-
-1. **`GfxWindowBackendWii`** (implementado): usa `WPAD_ScanPads` + `PAD_ScanPads` directamente. Control total, sin depender de SDL2.
-
-2. **`SDL_GameController`** (usado por Xash3D-Wii): delegar el input a SDL2, que en Wii maneja WPAD y PAD automáticamente.
-
-**Escaneo de botones:** los scancodes internos de los botones Wii están definidos en
-`libultraship/src/fast/backends/gfx_window_wii.cpp` con valores >= 1000 (rango libre
-para no colisionar con SDL). Hay que registrarlos en el `ControlDeck` de SoH
-para que el juego los reconozca como bindings válidos.
 
 ---
 
-## Sistema de archivos (pendiente)
+##  Shaders GX (diseño)
 
-SoH usa `std::filesystem` de la STL. En Wii hay que sustituirlo por **libfat**
-(para SD/USB) o **libogc** (`fatInitDefault`).
+El sistema de shaders de SoH (`gfx_opengl.cpp`) usa **GLSL dinámico**: cada combinación
+de `shader_id0` + `shader_id1` genera un shader programable con atributos de vértice
+variables.
 
-Archivos a revisar:
-- `libultraship/src/ship/resource/archive/*.cpp`
-- `libultraship/src/ship/utils/`
-- Cualquier sitio con `std::filesystem::` o `fopen`.
+En GX **no hay shaders programables**. La iluminación, texturizado y mezcla se hacen
+con **TEV stages** (hasta 16), que son registros de hardware configurados en runtime.
 
-Pendiente: identificar todos los usos y crear una capa de abstracción para Wii.
+### Traducción OpenGL → GX
 
----
+| OpenGL | GX |
+|--------|-----|
+| `aVtxPos` (4 floats) | `GX_Position3f32` (x, y, z) |
+| `aTexCoord0/1` (2 floats) | `GX_TexCoord2f32` |
+| `aGrayscaleColor`, `aInput*` (3-4 floats) | `GX_Color4u8` |
+| `aFog` (4 floats) | Ignorado por ahora |
+| Vertex + Fragment shader | Combinación de TEV stages |
+| `glVertexAttribPointer` con offsets | Cálculo manual de offsets |
 
-## Detalles de implementación del port
+### Estructura del `ShaderProgram` en GX
 
-### `MALLOC_MEM2 = 1`
+```cpp
+struct ShaderProgram {
+    uint8_t numInputs;
+    uint8_t numFloats;              // Total de floats por vértice
+    uint8_t numAttribs;
+    bool usedTextures[SHADER_MAX_TEXTURES];
 
-**CRÍTICO:** la Wii tiene 24 MB de MEM1 (lentos, compartidos con GPU) y 64 MB de MEM2 (más rápidos). Por defecto, libogc asigna heap en MEM1, lo que deja muy poca memoria libre al ejecutable.
+    // Offsets en floats dentro de cada vértice
+    size_t posOffset;               // aVtxPos: x,y,z,w
+    size_t tex0Offset;              // aTexCoord0: u,v
+    size_t tex1Offset;              // aTexCoord1: u,v
+    size_t colorOffset;             // aGrayscaleColor o aInput1
+    size_t fogOffset;               // aFog: rgba
 
-Solución (heredada de mi port Xash3D-Wii): definir la variable global al inicio del programa:
-
-```c
-u32 MALLOC_MEM2 = 1;
+    bool hasTexture;
+    bool hasAlpha;
+    bool twoCycle;
+    uint8_t numTevStages;
+};
 ```
 
-Esto debe ir en un .c/.cpp del ejecutable principal (probablemente en main.cpp o en el archivo de entrada de soh).
+Layout del VBO (floats por vértice)
 
-IS_BIGENDIAN — automático
+1. aVtxPos: 4 floats (x, y, z, w) — siempre presente
+2. Para cada textura i con usedTextures[i]:
+   · aTexCoord{i}: 2 floats (u, v)
+   · Por cada clamp[i][j]: aTexClamp{S,T}{i}: 1 float
+3. aFog: 4 floats (si opt_fog)
+4. aGrayscaleColor: 4 floats (si opt_grayscale)
+5. Por cada input n: aInput{n+1}: 4 floats (si opt_alpha) o 3 floats
 
-El código de SoH detecta big-endian por __BYTE_ORDER__ (que devkitPPC define como __ORDER_BIG_ENDIAN__ para Gekko/Broadway). No hay que tocar nada.
+No es un layout fijo de 9 floats. Cada shader tiene su propio numFloats
+calculado por CreateAndLoadNewShader.
 
-Las macros BE16SWAP/LE16SWAP/etc. en libultraship/include/ship/utils/binarytools/endianness.h se encargan de los swaps.
+Implementación actual
 
-Pendientes de manejar manualmente (fuera del sistema automático):
+libultraship/src/fast/backends/gfx_gx.cpp:
 
-· Texturas → GX (layout GX_TF_RGBA8 es específico de la GPU).
-· Matrices (Mtx N64 → formato GX).
-· Guardado de partidas (decidir endianness de escritura).
- 
+· CreateAndLoadNewShader: analiza CCFeatures y calcula todos los offsets.
+· LoadShader: aplica la configuración TEV mínima (modulate para textura,
+  passthrough para solo color).
+· DrawTriangles: lee el VBO con los offsets reales y emite vértices con
+  GX_Begin/GX_Position3f32/GX_Color4u8/GX_TexCoord2f32.
+· mShaderProgramPool: cachea shaders por par de IDs, igual que OpenGL.
 
+TEV: pendientes
+
+La implementación actual cubre el caso común (1 textura modulada con color).
+Cuando el primer render real en hardware lo requiera, habrá que añadir:
+
+· TEV 2-cycle (opt_2cyc): para shaders con 2 pasadas.
+· Alpha blending más complejo (opt_alpha).
+· Máscaras (used_masks): texturas adicionales con operaciones especiales.
+· Blend de 2 texturas (used_blend).
+· Clamp manual de coordenadas (clamp[i][j]).
+· Fog (opt_fog): interpolación de color por profundidad.
+
+Cada uno se mapea a combinaciones de GX_SetTevColorIn, GX_SetTevAlphaIn,
+GX_SetTevColorOp, GX_SetTevAlphaOp. Ver libogc/ogc/gx.h para constantes.
+
+Referencias
+
+· libultraship/src/fast/backends/gfx_opengl.cpp:406-545 — cómo OpenGL genera
+  el layout dinámico.
+· libultraship/include/fast/interpreter.h:105-127 — flags de CCFeatures.
