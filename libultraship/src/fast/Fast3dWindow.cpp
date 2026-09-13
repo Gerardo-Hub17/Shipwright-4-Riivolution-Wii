@@ -7,7 +7,12 @@
 #include "fast/interpreter.h"
 #include "fast/backends/gfx_sdl.h"
 #include "fast/backends/gfx_dxgi.h"
+#ifdef ENABLE_GX
+#include "fast/backends/gfx_gx.h"
+#endif
+#ifdef OPEN_GL
 #include "fast/backends/gfx_opengl.h"
+#endif
 #include "fast/backends/gfx_metal.h"
 #include "fast/backends/gfx_direct3d_common.h"
 #include "fast/backends/gfx_direct3d11.h"
@@ -147,6 +152,12 @@ void Fast3dWindow::InitWindowManager() {
         case WindowBackend::FAST3D_SDL_OPENGL:
             mRenderingApi = new GfxRenderingAPIOGL();
             mWindowManagerApi = new GfxWindowBackendSDL2();
+            break;
+#endif
+#ifdef ENABLE_GX
+        case WindowBackend::FAST3D_GX:
+            mRenderingApi = new GfxRenderingAPIGX();
+            mWindowManagerApi = nullptr;
             break;
 #endif
 #ifdef __APPLE__
