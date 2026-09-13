@@ -85,3 +85,19 @@ sed -i 's/zstd::libzstd_static/zstd::libzstd_shared/g' \
 
 # Build
 cmake --build build-cmake -j$(nproc)
+# En PC con devkitPro
+git clone https://github.com/Gerardo-Hub17/Shipwright-4-Riivolution-Wii.git
+cd Shipwright-4-Riivolution-Wii
+git checkout wii-cmake-support
+
+export DEVKITPRO=/opt/devkitpro
+export DEVKITPPC=$DEVKITPRO/devkitPPC
+
+# Usar el script
+bash scripts/wii/build.sh
+
+# O manualmente
+cmake -S . -B build-wii -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Wii.cmake \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-wii
