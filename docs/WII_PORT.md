@@ -101,3 +101,64 @@ cmake -S . -B build-wii -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=$DEVKITPRO/cmake/Wii.cmake \
   -DCMAKE_BUILD_TYPE=Release
 cmake --build build-wii
+
+---
+
+## 🔗 Referencias del backend GX (Xash3D-FWGS `ref-gx`)
+
+Antes de escribir `gfx_gx.cpp` en serio, la referencia viva es el backend GX
+del port de Xash3D del mismo autor.
+
+**Repo:** https://github.com/Gerardo-Hub17/xash3d-fwgs/tree/ref-gx
+
+### Mapa de archivos → funcionalidad
+
+| Archivo | Responsabilidad | Uso en SoH |
+|---------|-----------------|------------|
+| `ref/gx/gx_local.h` | Structs (`gltexture_t`), defines, tipos | Inspiración para `TextureInfoGX` |
+| `engine/platform/ogc/vid_ogc.c:89-139` | Init de VI + GX + framebuffer | `GfxRenderingAPIGX::Init()` |
+| `ref/gx/gx_context.c:36-48` | Vertex format + TEV base | `GfxRenderingAPIGX::StartFrame()` |
+| `ref/gx/gx_image.c:111-127` | `GX_InitTexObj` + `GX_InitTexObjLOD` | `GfxRenderingAPIGX::UploadTexture()` |
+| `ref/gx/gx_image.c:505-565` | Upload completo con `DCFlushRange` | `GfxRenderingAPIGX::UploadTexture()` |
+| `ref/gx/gx_draw.c:42-56` | `GX_Begin`/`GX_End` con quads | `GfxRenderingAPIGX::DrawTriangles()` |
+| `ref/gx/gx_alias.c:708-898` | Setup de TEV stages por shader | `GfxRenderingAPIGX::LoadShader()` |
+| `ref/gx/gx_backend.c:180-186` | Ejemplo de TEV con MODULATE/PASSCLR | `CreateAndLoadNewShader()` |
+
+### Patrones clave
+
+**Inicialización (una sola vez, en `Init()`):**
+```c
+VIDEO_Init();
+GX_Init(fifo, FIFO_SIZE);
+GX_SetCopyClear(background, 0x00ffffff);
+GX_SetViewport(...);
+GX_SetScissor(...);
+GX_SetDispCopySrc/Dst/Gamma(...);
+GX_SetPixelFmt(GX_PF_RGB8_Z24, GX_ZC_LINEAR);
+```
+
+Vertex format (en StartFrame() o una vez):
+
+```c
+GX_ClearVtxDesc();
+GX_SetVtxDesc(GX_VA_POS,  GX_DIRECT);
+GX_SetVtxDesc(GX_VA_CLR0, GX_DIRECT);
+GX_SetVtxDesc(GX_VA_TEX0, GX_DIRECT);
+GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_POS,  GX_POS_XYZ, GX_F32, 0);
+GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_CLR0, GX_CLR_RGBA, GX_RGBA8, 0);
+GX_SetVtxAttrFmt(GX_VTXFMT0, GX_VA_TEX0, GX_TEX_ST, GX_F32, 0);
+GX_SetNumChans(1);
+GX_SetNumTexGens(1);
+```
+
+Dibujo (en DrawTriangles()):
+
+```c
+GX_Begin(GX_TRIANGLES, GX_VTXFMT0, num_tris * 3);
+for (cada vértice) {
+    GX_Position3f32(x, y, z);
+    GX_Color4u8(r, g, b, a);
+    GX_TexCoord2f32(s, t);
+}
+GX_End();
+```
