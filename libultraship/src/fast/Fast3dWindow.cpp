@@ -9,6 +9,7 @@
 #include "fast/backends/gfx_dxgi.h"
 #ifdef ENABLE_GX
 #include "fast/backends/gfx_gx.h"
+#include "fast/backends/gfx_window_wii.h"
 #endif
 #ifdef ENABLE_OPENGL
 #include "fast/backends/gfx_opengl.h"
@@ -157,7 +158,7 @@ void Fast3dWindow::InitWindowManager() {
 #ifdef ENABLE_GX
         case WindowBackend::FAST3D_GX:
             mRenderingApi = new GfxRenderingAPIGX();
-            mWindowManagerApi = nullptr;
+            mWindowManagerApi = new GfxWindowBackendWii();
             break;
 #endif
 #ifdef __APPLE__
