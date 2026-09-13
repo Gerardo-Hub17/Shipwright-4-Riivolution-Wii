@@ -486,6 +486,12 @@ std::string Context::GetAppBundlePath() {
     return std::string(home) + "/Documents";
 #endif
 
+#ifdef __wii__
+    // Wii: la app vive en la SD/USB. libfat monta sd:/ y usb:/ al inicio
+    // (ver main.c, Wii_MountSD). Usamos una ruta estándar de Homebrew Channel.
+    return "sd:/apps/soh";
+#endif
+
 #ifdef NON_PORTABLE
     return CMAKE_INSTALL_PREFIX;
 #else
@@ -569,6 +575,12 @@ std::string Context::GetAppDirectoryPath(const std::string& appName) {
     if (fpath != NULL) {
         return std::string(fpath);
     }
+#endif
+
+#ifdef __wii__
+    // Wii: la app vive en la SD/USB. libfat monta sd:/ y usb:/ al inicio
+    // (ver main.c, Wii_MountSD). Usamos una ruta estándar de Homebrew Channel.
+    return "sd:/apps/soh";
 #endif
 
 #ifdef NON_PORTABLE

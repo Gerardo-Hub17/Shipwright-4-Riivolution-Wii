@@ -143,3 +143,14 @@ find_package(SDL2 REQUIRED)
 target_link_libraries(ImGui PUBLIC SDL2::SDL2)
 
 message(STATUS "SDL2 linked for Wii: ${SDL2_LIBRARIES}")
+
+# ================== std::filesystem (libstdc++) ==================
+# Algunas versiones de libstdc++ requieren enlazar -lstdc++fs aparte.
+# En devkitPPC moderno suele estar integrado.
+find_library(STDCXXFS_LIBRARY stdc++fs)
+if (STDCXXFS_LIBRARY)
+    target_link_libraries(libultraship PRIVATE ${STDCXXFS_LIBRARY})
+    message(STATUS "Wii: linked stdc++fs for <filesystem> support")
+else()
+    message(STATUS "Wii: stdc++fs not found - assuming filesystem is in libstdc++")
+endif()

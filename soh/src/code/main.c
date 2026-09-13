@@ -18,6 +18,22 @@
 u32 MALLOC_MEM2 = 1;
 #endif
 
+#ifdef __wii__
+#include <fat.h>
+
+// Monta SD/USB vía libfat. Debe llamarse antes de cualquier fopen().
+// Referencia: Xash3D-Wii, engine/common/filesystem_engine.c:OGC_MountSD
+static void Wii_MountSD(void) {
+    static int mounted = -1;
+    if (mounted < 0) {
+        mounted = fatInitDefault() ? 1 : 0;
+        if (!mounted) {
+            osSyncPrintf("ERROR: fatInitDefault() failed - SD/USB not mounted\n");
+        }
+    }
+}
+#endif
+
 s32 gScreenWidth = SCREEN_WIDTH;
 s32 gScreenHeight = SCREEN_HEIGHT;
 size_t gSystemHeapSize = 0;
@@ -64,6 +80,9 @@ int SDL_main(int argc, char* argv[]) {
 
 #else //_WIN32
 int main(int argc, char* argv[]) {
+#ifdef __wii__
+    Wii_MountSD();
+#endif
 #endif
     GameConsole_Init();
     InitOTR(argc, argv);
