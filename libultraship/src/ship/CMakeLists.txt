@@ -24,6 +24,15 @@ target_sources(libultraship PRIVATE ${Source_Files__Audio})
 
 file(GLOB_RECURSE Source_Files__Controller RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "controller/*.cpp")
 
+if (CMAKE_SYSTEM_NAME STREQUAL "NintendoWii")
+    # En Wii no compilamos los mapeos específicos de SDL ni el gestor de
+    # dispositivos físicos basado en SDL. El input va por GfxWindowBackendWii.
+    # Ver docs/WII_PORT.md sección "Input en Wii".
+    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/controldevice/controller/mapping/sdl/")
+    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/physicaldevice/SDLAddRemoveDeviceEventHandler")
+    list(FILTER Source_Files__Controller EXCLUDE REGEX "controller/physicaldevice/ConnectedPhysicalDeviceManager")
+endif()
+
 source_group("controller" FILES ${Source_Files__Controller})
 target_sources(libultraship PRIVATE ${Source_Files__Controller})
 
