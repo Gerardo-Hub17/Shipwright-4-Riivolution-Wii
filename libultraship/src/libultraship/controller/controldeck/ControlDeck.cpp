@@ -54,7 +54,12 @@ void ControlDeck::WriteToPad(void* pad) {
 }
 
 void ControlDeck::WriteToOSContPad(OSContPad* pad) {
+#ifndef __wii__
+    // En Wii no usamos SDL2 para input: GfxWindowBackendWii ya llama a
+    // WPAD_ScanPads/PAD_ScanPads cada frame desde Fast3dWindow::HandleEvents.
+    // SDL_PumpEvents aquí sería redundante y procesaría una cola SDL vacía.
     SDL_PumpEvents();
+#endif
     Ship::WheelHandler::GetInstance()->Update();
 
     if (AllGameInputBlocked()) {
