@@ -67,6 +67,7 @@ bool Fast3dGui::SupportsViewports() {
 
 void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
     switch (mImpl.Backend) {
+#ifndef __wii__
         case WindowBackend::FAST3D_SDL_OPENGL:
         case WindowBackend::FAST3D_SDL_METAL:
             ImGui_ImplSDL2_ProcessEvent(static_cast<const SDL_Event*>(event.Sdl.Event));
@@ -74,6 +75,7 @@ void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
             Ship::Mobile::ImGuiProcessEvent(ImGui::GetIO().WantTextInput);
 #endif
             break;
+#endif
 #ifdef ENABLE_DX11
         case WindowBackend::FAST3D_DXGI_DX11:
             ImGui_ImplWin32_WndProcHandler(static_cast<HWND>(event.Win32.Handle), event.Win32.Msg, event.Win32.Param1,
@@ -87,6 +89,7 @@ void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
 
 void Fast3dGui::ImGuiWMInit() {
     switch (mImpl.Backend) {
+#ifndef __wii__
         case WindowBackend::FAST3D_SDL_OPENGL:
             SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
             if (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(CVAR_ALLOW_BACKGROUND_INPUTS, 1)) {
@@ -94,6 +97,7 @@ void Fast3dGui::ImGuiWMInit() {
             }
             ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(mImpl.Opengl.Window), mImpl.Opengl.Context);
             break;
+#endif
 #if __APPLE__
         case WindowBackend::FAST3D_SDL_METAL:
             SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
@@ -223,10 +227,12 @@ void Fast3dGui::ImGuiBackendNewFrame() {
 
 void Fast3dGui::ImGuiWMNewFrame() {
     switch (mImpl.Backend) {
+#ifndef __wii__
         case WindowBackend::FAST3D_SDL_OPENGL:
         case WindowBackend::FAST3D_SDL_METAL:
             ImGui_ImplSDL2_NewFrame();
             break;
+#endif
 #ifdef ENABLE_DX11
         case WindowBackend::FAST3D_DXGI_DX11:
             ImGui_ImplWin32_NewFrame();
@@ -240,11 +246,13 @@ void Fast3dGui::ImGuiWMNewFrame() {
 // Bind ImGui's SDL2 gamepad backend to the controller(s) the
 // ControlDeck has already opened
 void Fast3dGui::RefreshImGuiGamepads() {
+#ifndef __wii__
     if (mImpl.Backend != WindowBackend::FAST3D_SDL_OPENGL && mImpl.Backend != WindowBackend::FAST3D_SDL_METAL) {
         return;
     }
 
     ImGui_ImplSDL2_SetGamepadMode(ImGui_ImplSDL2_GamepadMode_AutoAll, nullptr, 0);
+#endif
 }
 
 void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {
@@ -274,11 +282,16 @@ void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {
 }
 
 void Fast3dGui::DrawFloatingWindows() {
+#ifdef __wii__
+    // En Wii no hay viewports flotantes (ImGui single-viewport only).
+    return;
+#endif
     if (!(ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)) {
         return;
     }
 
     // OpenGL requires extra platform handling for the GL context
+#ifndef __wii__
     if (mImpl.Backend == WindowBackend::FAST3D_SDL_OPENGL && mImpl.Opengl.Context != nullptr) {
         // Backup window and context before calling RenderPlatformWindowsDefault
         SDL_Window* backupCurrentWindow = SDL_GL_GetCurrentWindow();
@@ -289,7 +302,9 @@ void Fast3dGui::DrawFloatingWindows() {
 
         // Restore GL context for next frame
         SDL_GL_MakeCurrent(backupCurrentWindow, backupCurrentContext);
-    } else {
+    } else
+#endif
+    {
 #ifdef __APPLE__
         // Metal requires additional frame setup to get ImGui ready for drawing floating windows
         if (mImpl.Backend == WindowBackend::FAST3D_SDL_METAL) {
