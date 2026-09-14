@@ -415,3 +415,76 @@ Nunca commitear sin compilar. El flujo correcto es:
 5. Si falla: arreglar antes de commitear.
 
 Los CMakeLists con if/else/endif son especialmente frágiles a ediciones manuales. Usar grep y cat -n para verificar la estructura antes de guardar.
+
+---
+
+## Sistema de archivos — actualización
+
+`std::filesystem` **está soportado por devkitPPC** desde la release 31 (junio 2018),
+que es la base del toolchain actual. Esto significa que:
+
+- **No hay que reescribir** los archivos que usan `fs::exists`, `fs::is_directory`,
+  `fs::directory_iterator`, `fs::absolute` o `fs::remove`.
+- El flag `-lstdc++fs` en `wii.cmake` ya está detectado como preventivo; en
+  devkitPPC moderno suele estar **integrado en libstdc++**, por lo que se
+  convierte en un no-op.
+- El único bug documentado es `fs::remove` sobre **directorios** (solo borra
+  archivos). No nos afecta porque el único uso (`ConsoleVariable.cpp:380`) es
+  sobre un archivo de configuración.
+
+### Archivos que usan `std::filesystem`
+
+| Archivo | Operaciones | Uso |
+|---------|-------------|-----|
+| `libultraship/src/ship/Context.cpp` | `exists` (×2) | Detección de rutas |
+| `libultraship/src/ship/config/Config.cpp` | `exists`, `is_regular_file` | Carga de configuración |
+| `libultraship/src/ship/config/ConsoleVariable.cpp` | `remove` | Limpiar config |
+| `libultraship/src/ship/resource/archive/ArchiveManager.cpp` | `is_directory`, `directory_iterator`, `absolute`, `is_regular_file` | Carga de `.o2r` |
+| `libultraship/src/ship/scripting/ScriptLoader.cpp` | `exists`, `is_directory` | Solo si `ENABLE_SCRIPTING` |
+| `libultraship/src/ship/window/gui/FileBrowserWindow.cpp` | Muchas (iteración, `current_path`) | GUI opcional |
+
+### Carga del `.o2r`
+
+El flujo real en Wii:
+
+1. `main()` llama a `Wii_MountSD()` → `fatInitDefault()` monta `sd:/` y `usb:/`.
+2. `Context::GetAppDirectoryPath()` devuelve `sd:/apps/soh`.
+3. `ArchiveManager` busca el `.o2r` en esa carpeta usando `fs::exists` + `directory_iterator`.
+4. libzip (con `fopen` por debajo) lee el `.o2r` de la SD.
+
+**Ubicación esperada del archivo en la SD**: `sd:/apps/soh/soh.o2r`.
+
+### ¿Y si algo falla en el primer build?
+
+Si por alguna razón devkitPPC no encuentra `fs::exists` o `directory_iterator`:
+
+1. **Plan A**: Añadir `-lstdc++fs` explícitamente al final de los flags de link
+   (aunque parezca redundante, a veces hace falta con versiones antiguas).
+2. **Plan B**: Reemplazar operaciones problemáticas con wrappers usando
+   `stat()` / `opendir()` / `readdir()` de libfat, que están garantizados en
+   libogc. Ver `libultraship/src/ship/utils/filesystemtools/` para inspiración.
+
+---
+
+##  Auditoría de plataforma — resumen
+
+Estado de cada área del código tras la auditoría:
+
+| Área | Estado | Detalle |
+|------|--------|---------|
+| Backend gráfico GX | correcto | `gfx_gx.h/cpp` completos |
+| Backend ventana/input | correcto | `gfx_window_wii.h/cpp` con WPAD/PAD |
+| Shaders GX (TEV) |  | Layout dinámico del VBO implementado |
+| Audio (SDL2) | correcto | Sin cambios necesarios |
+| Sistema de input (ControlDeck) | correcto | `SDL_PumpEvents` guardado en Wii |
+| Controller (ship y LUS) | correcto | Solo include de `SDL_events.h`, no rompe |
+| CrashHandler | correcto | Ya protegido por `#ifdef __linux__` / `_WIN32` |
+| Fast3dGui | correcto | Cases SDL bajo `#ifndef __wii__` |
+| Filtros SDL del controller | correcto | Excluidos en CMake para Wii |
+| `std::filesystem` | correcto | Soportado por devkitPPC |
+| MEM2 (`MALLOC_MEM2`) | correcto | Heap en MEM2 |
+| Big-endian | correcto | Detectado automáticamente |
+| Sistema de archivos (libfat) | correcto | `fatInitDefault()` en `main.c` |
+
+**Todo el código compartido está protegido, excluido o confirmado como compatible.**
+El siguiente paso es el primer build con devkitPPC en WSL2.
