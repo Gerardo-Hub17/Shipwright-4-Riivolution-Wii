@@ -127,7 +127,43 @@ typedef enum KbScancode {
     LUS_KB_ARROWKEY_LEFT = 331,
     LUS_KB_ARROWKEY_RIGHT = 333,
     LUS_KB_ARROWKEY_DOWN = 336,
-    LUS_KB_MAX ///< Sentinel — do not use as a scan code.
+
+    // ========================================================================
+    // Nintendo Wii — botones virtuales emitidos por GfxWindowBackendWii
+    // (libultraship/src/fast/backends/gfx_window_wii.cpp).
+    //
+    // NO son scancodes PS/2 reales: son identificadores internos que el
+    // backend GX usa para reportar las pulsaciones de Wiimote, Nunchuk,
+    // Classic Controller y GameCube a través de los callbacks de teclado.
+    //
+    // Empiezan en 1000 para no colisionar con los scancodes PS/2 (0-336).
+    // Ver docs/WII_PORT.md sección "Input en Wii".
+    // ========================================================================
+    LUS_KB_WII_A             = 1000, ///< Wiimote A / GC A / Classic A
+    LUS_KB_WII_B             = 1001, ///< Wiimote B / GC B / Classic B
+    LUS_KB_WII_X             = 1002, ///< Wiimote 1 / GC X / Classic X
+    LUS_KB_WII_Y             = 1003, ///< Wiimote 2 / GC Y / Classic Y
+    LUS_KB_WII_START         = 1004, ///< Wiimote Plus / GC Start / Classic Plus
+    LUS_KB_WII_SELECT        = 1005, ///< Wiimote Minus / Classic Minus
+    LUS_KB_WII_HOME          = 1006, ///< Wiimote Home / Classic Home
+    LUS_KB_WII_DPAD_UP       = 1010,
+    LUS_KB_WII_DPAD_DOWN     = 1011,
+    LUS_KB_WII_DPAD_LEFT     = 1012,
+    LUS_KB_WII_DPAD_RIGHT    = 1013,
+    LUS_KB_WII_L             = 1020, ///< Nunchuk C / GC L / Classic L
+    LUS_KB_WII_R             = 1021, ///< Nunchuk Z / GC R / Classic R
+    LUS_KB_WII_ZL            = 1022, ///< Classic ZL
+    LUS_KB_WII_ZR            = 1023, ///< Classic ZR / GC Z / Nunchuk Z
+    LUS_KB_WII_STICK_UP      = 1030, ///< Stick izquierdo (arriba)
+    LUS_KB_WII_STICK_DOWN    = 1031, ///< Stick izquierdo (abajo)
+    LUS_KB_WII_STICK_LEFT    = 1032, ///< Stick izquierdo (izquierda)
+    LUS_KB_WII_STICK_RIGHT   = 1033, ///< Stick izquierdo (derecha)
+    LUS_KB_WII_STICK2_UP     = 1040, ///< Stick derecho (arriba)
+    LUS_KB_WII_STICK2_DOWN   = 1041, ///< Stick derecho (abajo)
+    LUS_KB_WII_STICK2_LEFT   = 1042, ///< Stick derecho (izquierda)
+    LUS_KB_WII_STICK2_RIGHT  = 1043, ///< Stick derecho (derecha)
+
+    LUS_KB_MAX = 1044 ///< Sentinel — do not use as a scan code.
 } KbScancode;
 
 /**

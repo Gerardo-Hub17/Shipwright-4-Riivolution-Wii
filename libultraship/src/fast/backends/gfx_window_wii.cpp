@@ -10,6 +10,8 @@
 #include <ogc/lwp_watchdog.h>
 #include <wiiuse/wpad.h>
 
+#include "ship/controller/controldevice/controller/mapping/keyboard/KeyboardScancodes.h"
+
 namespace Fast {
 
 // ============================================================
@@ -20,27 +22,29 @@ namespace Fast {
 //  de controller configurado para Wii, habrá que registrar estos
 //  valores ahí (ver KbScancode).
 // ============================================================
+// Alias de los scancodes Wii definidos en Ship::KbScancode.
+// Ver libultraship/include/ship/controller/controldevice/controller/mapping/keyboard/KeyboardScancodes.h
 namespace WiiScan {
 enum : int {
-    A       = 1000,
-    B       = 1001,
-    X       = 1002,
-    Y       = 1003,
-    START   = 1004,
-    SELECT  = 1005,
-    HOME    = 1006,
-    L       = 1020,
-    R       = 1021,
-    ZL      = 1022,
-    ZR      = 1023,
-    DPAD_UP    = 1010,
-    DPAD_DOWN  = 1011,
-    DPAD_LEFT  = 1012,
-    DPAD_RIGHT = 1013,
-    STICK_UP    = 1030,
-    STICK_DOWN  = 1031,
-    STICK_LEFT  = 1032,
-    STICK_RIGHT = 1033,
+    A       = Ship::LUS_KB_WII_A,
+    B       = Ship::LUS_KB_WII_B,
+    X       = Ship::LUS_KB_WII_X,
+    Y       = Ship::LUS_KB_WII_Y,
+    START   = Ship::LUS_KB_WII_START,
+    SELECT  = Ship::LUS_KB_WII_SELECT,
+    HOME    = Ship::LUS_KB_WII_HOME,
+    L       = Ship::LUS_KB_WII_L,
+    R       = Ship::LUS_KB_WII_R,
+    ZL      = Ship::LUS_KB_WII_ZL,
+    ZR      = Ship::LUS_KB_WII_ZR,
+    DPAD_UP    = Ship::LUS_KB_WII_DPAD_UP,
+    DPAD_DOWN  = Ship::LUS_KB_WII_DPAD_DOWN,
+    DPAD_LEFT  = Ship::LUS_KB_WII_DPAD_LEFT,
+    DPAD_RIGHT = Ship::LUS_KB_WII_DPAD_RIGHT,
+    STICK_UP    = Ship::LUS_KB_WII_STICK_UP,
+    STICK_DOWN  = Ship::LUS_KB_WII_STICK_DOWN,
+    STICK_LEFT  = Ship::LUS_KB_WII_STICK_LEFT,
+    STICK_RIGHT = Ship::LUS_KB_WII_STICK_RIGHT,
 };
 } // namespace WiiScan
 

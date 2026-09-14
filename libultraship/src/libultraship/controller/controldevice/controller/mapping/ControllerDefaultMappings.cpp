@@ -45,6 +45,33 @@ void ControllerDefaultMappings::SetDefaultKeyboardKeyToButtonMappings(
         return;
     }
 
+#ifdef __wii__
+    // Mappings por defecto para Nintendo Wii (Wiimote / Nunchuk / Classic / GameCube).
+    // Los scancodes Wii los emite GfxWindowBackendWii::HandleEvents.
+    // Ver docs/WII_PORT.md sección "Input en Wii".
+    Ship::ControllerDefaultMappings::SetDefaultKeyboardKeyToButtonMappings({
+        // Botones de acción
+        { BTN_A,     { Ship::KbScancode::LUS_KB_WII_A } },
+        { BTN_B,     { Ship::KbScancode::LUS_KB_WII_B } },
+        { BTN_START, { Ship::KbScancode::LUS_KB_WII_START } },
+        // Triggers / botones Z
+        { BTN_L,     { Ship::KbScancode::LUS_KB_WII_L } },
+        { BTN_R,     { Ship::KbScancode::LUS_KB_WII_R } },
+        { BTN_Z,     { Ship::KbScancode::LUS_KB_WII_ZR } },
+        // C-buttons desde stick derecho (o Classic right stick / GC C-stick)
+        { BTN_CUP,    { Ship::KbScancode::LUS_KB_WII_STICK2_UP } },
+        { BTN_CDOWN,  { Ship::KbScancode::LUS_KB_WII_STICK2_DOWN } },
+        { BTN_CLEFT,  { Ship::KbScancode::LUS_KB_WII_STICK2_LEFT } },
+        { BTN_CRIGHT, { Ship::KbScancode::LUS_KB_WII_STICK2_RIGHT } },
+        // D-pad
+        { BTN_DUP,    { Ship::KbScancode::LUS_KB_WII_DPAD_UP } },
+        { BTN_DDOWN,  { Ship::KbScancode::LUS_KB_WII_DPAD_DOWN } },
+        { BTN_DLEFT,  { Ship::KbScancode::LUS_KB_WII_DPAD_LEFT } },
+        { BTN_DRIGHT, { Ship::KbScancode::LUS_KB_WII_DPAD_RIGHT } },
+    });
+    return;
+#endif
+
     Ship::ControllerDefaultMappings::SetDefaultKeyboardKeyToButtonMappings({
         { BTN_A, { Ship::KbScancode::LUS_KB_X } },
         { BTN_B, { Ship::KbScancode::LUS_KB_C } },
